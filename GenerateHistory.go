@@ -121,55 +121,62 @@ func (generateHistory *GenerateHistory) print(preTime, postTime int64, actionNam
 
 func (generateHistory *GenerateHistory) execute(num int) bool {
 	var route, departure, arrival int
-	ticket = Ticket{}
-	switch(num){
-	  case 0:  //refund
-		if len(soldTicket[th.get()]) == 0 {
+	ticket := Ticket{}
+	switch num {
+	case 0: //refund
+		if len(generateHistory.soldTicket[th.get()]) == 0 {
 			return false
 		}
-		n := rand.nextInt(soldTicket.get(ThreadId.get()).size())
-		ticket = soldTicket.get(ThreadId.get()).remove(n);
-		if(ticket == null){
-		  return false
+		n := rand.Intn(len(generateHistory.soldTicket[th.get()]))
+		// 移除第n号位
+		ticket = generateHistory.soldTicket[th.get()][n]
+		generateHistory.soldTicket[th.get()] = append(generateHistory.soldTicket[th.get()][0:n], generateHistory.soldTicket[th.get()][n+1:]...)
+		// 判空
+		if isTicketNil(ticket) {
+			return false
 		}
-		currentTicket.set(ThreadId.get(), ticket);
-	    flag := tds.refundTicket(ticket);
-		currentRes.set(ThreadId.get(), "true"); 
+		generateHistory.currentTicket[th.get()] = ticket
+		flag := generateHistory.tds.RefundTicket(ticket)
+		generateHistory.currentRes[th.get()] = "true"
 		return flag
-	  case 1:  //buy
-		passenger := getPassengerName();
-		route = gegenerateHistory.r.Int(routenum) + 1;
-		departure = rand.nextInt(stationnum - 1) + 1;
-		arrival = departure + rand.nextInt(stationnum - departure) + 1;
-		ticket = tds.buyTicket(passenger, route, departure, arrival);
-		if(ticket == null){
-		  ticket = new Ticket();
-		  ticket.passenger = passenger;
-		  ticket.route = route;
-		  ticket.departure = departure;
-		  ticket.arrival = arrival;
-		  ticket.seat = 0;
-		  currentTicket.set(ThreadId.get(), ticket);
-		  currentRes.set(ThreadId.get(), "false");
-		  return true;
+	case 1: //buy
+		passenger := generateHistory.getPassengerName()
+		route = generateHistory.r.Intn(routenum) + 1
+		departure = generateHistory.r.Intn(stationnum-1) + 1
+		arrival = departure + generateHistory.r.Intn(stationnum-departure) + 1
+		ticket = *generateHistory.tds.BuyTicket(passenger, route, departure, arrival)
+		if isTicketNil(ticket) {
+			ticket = Ticket{}
+			ticket.passenger = passenger
+			ticket.route = route
+			ticket.departure = departure
+			ticket.arrival = arrival
+			ticket.seat = 0
+			generateHistory.currentTicket[th.get()] = ticket
+			generateHistory.currentRes[th.get()] = "false"
+			return true
 		}
-		currentTicket.set(ThreadId.get(), ticket);
-		currentRes.set(ThreadId.get(), "true");
-		soldTicket.get(ThreadId.get()).add(ticket);
-		return true;
-	  case 2: 
-		ticket.passenger = getPassengerName();
-		ticket.route = rand.nextInt(routenum) + 1;
-		ticket.departure = rand.nextInt(stationnum - 1) + 1;
-		ticket.arrival = ticket.departure + rand.nextInt(stationnum - ticket.departure) + 1; // arrival is always greater than departure
-		ticket.seat = tds.inquiry(ticket.route, ticket.departure, ticket.arrival);
-		currentTicket.set(ThreadId.get(), ticket);
-		currentRes.set(ThreadId.get(), "true"); 
+		generateHistory.currentTicket[th.get()] = ticket
+		generateHistory.currentRes[th.get()] = "true"
+		generateHistory.soldTicket[th.get()] = append(generateHistory.soldTicket[th.get()], ticket)
 		return true
-	  default: 
-		System.out.println("Error in execution.");
+	case 2:
+		ticket.passenger = generateHistory.getPassengerName()
+		ticket.route = generateHistory.r.Intn(routenum) + 1
+		ticket.departure = generateHistory.r.Intn(stationnum-1) + 1
+		ticket.arrival = ticket.departure + generateHistory.r.Intn(stationnum-ticket.departure) + 1 // arrival is always greater than departure
+		ticket.seat = generateHistory.tds.Inquiry(ticket.route, ticket.departure, ticket.arrival)
+		generateHistory.currentTicket[th.get()] = ticket
+		generateHistory.currentRes[th.get()] = "true"
+		return true
+	default:
+		fmt.Println("Error in execution.")
 		return false
-	  
 
 	}
+}
+
+func isTicketNil(x Ticket) bool {
+	y := Ticket{}
+	return x == y
 }
